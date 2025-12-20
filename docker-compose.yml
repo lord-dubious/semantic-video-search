@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  # Main video search service
+  video-search:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - LANCEDB_PATH=/app/data/lancedb
+      - FRAME_INTERVAL=${FRAME_INTERVAL:-2.0}
+    volumes:
+      - ./data:/app/data
+      - ./videos:/app/videos:ro
+    stdin_open: true
+    tty: true
+
+  # Test runner service
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - GEMINI_API_KEY=test-key
+    command: pytest tests/ -v --tb=short
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+    profiles:
+      - test
+
+volumes:
+  data:
