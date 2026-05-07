@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "semantic-video-search"
 version = "1.0.0"
-description = "Multimodal semantic video search with LanceDB, Gemini AI, and ffmpeg"
+description = "Semantic video indexing with LanceDB, Gemini, and ffmpeg"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
