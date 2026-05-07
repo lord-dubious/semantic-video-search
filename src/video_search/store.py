@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import os
+import importlib
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +13,33 @@ from video_search.models import (
     SearchResults,
     VectorStoreConfig,
 )
+
+
+class VectorStoreDependencyError(RuntimeError):
+    """Raised when the LanceDB vector store cannot be initialized."""
+
+
+RowData = dict[str, Any]
+
+
+def _embedding_to_row(embedding: FrameEmbedding) -> RowData:
+    return {
+        "frame_id": embedding.frame_id,
+        "video_id": embedding.video_id,
+        "timestamp": embedding.timestamp,
+        "description": embedding.description,
+        "vector": embedding.embedding,
+    }
+
+
+def _row_to_embedding(row: RowData) -> FrameEmbedding:
+    return FrameEmbedding(
+        frame_id=row["frame_id"],
+        video_id=row["video_id"],
+        timestamp=row["timestamp"],
+        description=row["description"],
+        embedding=list(row["vector"]),
+    )
 
 
 class VectorStore:
@@ -28,31 +55,34 @@ class VectorStore:
         self._db = None
         self._table = None
 
+    @property
+    def is_ready(self) -> bool:
+        """Whether the backing LanceDB table has been opened or created."""
+        self._init_db()
+        return self._table is not None
+
     def _init_db(self) -> None:
         """Initialize LanceDB connection lazily."""
         if self._db is not None:
             return
 
         try:
-            import lancedb
+            lancedb = importlib.import_module("lancedb")
+        except ImportError as exc:
+            raise VectorStoreDependencyError(
+                "LanceDB is required for VectorStore. Install the project dependencies or use "
+                "InMemoryVectorStore explicitly for tests and demos."
+            ) from exc
 
-            # Create database directory
-            db_path = Path(self.config.db_path)
-            db_path.mkdir(parents=True, exist_ok=True)
+        db_path = Path(self.config.db_path)
+        db_path.mkdir(parents=True, exist_ok=True)
 
-            self._db = lancedb.connect(str(db_path))
+        self._db = lancedb.connect(str(db_path))
 
-            # Check if table exists
-            if self.config.table_name in self._db.table_names():
-                self._table = self._db.open_table(self.config.table_name)
-            else:
-                self._table = None
-
-        except ImportError:
-            # Mock mode for testing
-            self._db = "mock"
+        if self.config.table_name in self._db.table_names():
+            self._table = self._db.open_table(self.config.table_name)
+        else:
             self._table = None
-            self._mock_data: list[dict] = []
 
     def _create_table_if_needed(self, embedding_dim: int = 768) -> None:
         """Create the table if it doesn't exist.
@@ -62,11 +92,14 @@ class VectorStore:
         """
         self._init_db()
 
-        if self._db == "mock":
-            return
-
         if self._table is None:
-            import pyarrow as pa
+            try:
+                pa = importlib.import_module("pyarrow")
+            except ImportError as exc:
+                raise VectorStoreDependencyError(
+                    "PyArrow is required to create the LanceDB frame table. Install the project "
+                    "dependencies before indexing videos."
+                ) from exc
 
             # Define schema
             schema = pa.schema(
@@ -79,7 +112,9 @@ class VectorStore:
                 ]
             )
 
-            self._table = self._db.create_table(
+            db = self._db
+            assert db is not None
+            self._table = db.create_table(
                 self.config.table_name,
                 schema=schema,
             )
@@ -92,20 +127,10 @@ class VectorStore:
         """
         self._init_db()
         self._create_table_if_needed(len(embedding.embedding))
+        table = self._table
+        assert table is not None
 
-        data = {
-            "frame_id": embedding.frame_id,
-            "video_id": embedding.video_id,
-            "timestamp": embedding.timestamp,
-            "description": embedding.description,
-            "vector": embedding.embedding,
-        }
-
-        if self._db == "mock":
-            self._mock_data.append(data)
-            return
-
-        self._table.add([data])
+        table.add([_embedding_to_row(embedding)])
 
     def add_embeddings(self, embeddings: list[FrameEmbedding]) -> None:
         """Add multiple embeddings to the store.
@@ -118,23 +143,10 @@ class VectorStore:
 
         self._init_db()
         self._create_table_if_needed(len(embeddings[0].embedding))
+        table = self._table
+        assert table is not None
 
-        data = [
-            {
-                "frame_id": e.frame_id,
-                "video_id": e.video_id,
-                "timestamp": e.timestamp,
-                "description": e.description,
-                "vector": e.embedding,
-            }
-            for e in embeddings
-        ]
-
-        if self._db == "mock":
-            self._mock_data.extend(data)
-            return
-
-        self._table.add(data)
+        table.add([_embedding_to_row(embedding) for embedding in embeddings])
 
     def search(
         self,
@@ -156,8 +168,7 @@ class VectorStore:
 
         self._init_db()
 
-        if self._db == "mock" or self._table is None:
-            # Return empty results for mock mode
+        if self._table is None:
             return SearchResults(
                 query=query.query,
                 results=[],
@@ -214,18 +225,6 @@ class VectorStore:
         """
         self._init_db()
 
-        if self._db == "mock":
-            for data in self._mock_data:
-                if data["frame_id"] == frame_id:
-                    return FrameEmbedding(
-                        frame_id=data["frame_id"],
-                        video_id=data["video_id"],
-                        timestamp=data["timestamp"],
-                        description=data["description"],
-                        embedding=data["vector"],
-                    )
-            return None
-
         if self._table is None:
             return None
 
@@ -254,19 +253,6 @@ class VectorStore:
         """
         self._init_db()
 
-        if self._db == "mock":
-            return [
-                FrameEmbedding(
-                    frame_id=data["frame_id"],
-                    video_id=data["video_id"],
-                    timestamp=data["timestamp"],
-                    description=data["description"],
-                    embedding=data["vector"],
-                )
-                for data in self._mock_data
-                if data["video_id"] == video_id
-            ]
-
         if self._table is None:
             return []
 
@@ -294,11 +280,6 @@ class VectorStore:
         """
         self._init_db()
 
-        if self._db == "mock":
-            original_len = len(self._mock_data)
-            self._mock_data = [d for d in self._mock_data if d["video_id"] != video_id]
-            return original_len - len(self._mock_data)
-
         if self._table is None:
             return 0
 
@@ -318,9 +299,6 @@ class VectorStore:
         """
         self._init_db()
 
-        if self._db == "mock":
-            return len(self._mock_data)
-
         if self._table is None:
             return 0
 
@@ -334,9 +312,6 @@ class VectorStore:
         """
         self._init_db()
 
-        if self._db == "mock":
-            return list(set(d["video_id"] for d in self._mock_data))
-
         if self._table is None:
             return []
 
@@ -347,13 +322,63 @@ class VectorStore:
         """Clear all data from the store."""
         self._init_db()
 
-        if self._db == "mock":
-            self._mock_data = []
-            return
-
         if self._table is not None:
-            self._db.drop_table(self.config.table_name)
+            db = self._db
+            assert db is not None
+            db.drop_table(self.config.table_name)
             self._table = None
+
+
+class InMemoryVectorStore:
+    """Explicit in-memory vector store for tests and demos."""
+
+    def __init__(self, config: VectorStoreConfig | None = None):
+        self.config = config or VectorStoreConfig()
+        self._rows: list[RowData] = []
+
+    @property
+    def is_ready(self) -> bool:
+        return True
+
+    def add_embedding(self, embedding: FrameEmbedding) -> None:
+        self._rows.append(_embedding_to_row(embedding))
+
+    def add_embeddings(self, embeddings: list[FrameEmbedding]) -> None:
+        self._rows.extend(_embedding_to_row(embedding) for embedding in embeddings)
+
+    def search(self, query_embedding: list[float], query: SearchQuery) -> SearchResults:
+        import time
+
+        start_time = time.time()
+        return SearchResults(
+            query=query.query,
+            results=[],
+            total_found=0,
+            search_time_ms=(time.time() - start_time) * 1000,
+        )
+
+    def get_frame(self, frame_id: str) -> FrameEmbedding | None:
+        for row in self._rows:
+            if row["frame_id"] == frame_id:
+                return _row_to_embedding(row)
+        return None
+
+    def get_video_frames(self, video_id: str) -> list[FrameEmbedding]:
+        return [_row_to_embedding(row) for row in self._rows if row["video_id"] == video_id]
+
+    def delete_video(self, video_id: str) -> int:
+        original_len = len(self._rows)
+        self._rows = [row for row in self._rows if row["video_id"] != video_id]
+        return original_len - len(self._rows)
+
+    def count(self) -> int:
+        return len(self._rows)
+
+    def list_videos(self) -> list[str]:
+        return sorted({row["video_id"] for row in self._rows})
+
+    def clear(self) -> None:
+        self._rows = []
 
 
 def create_vector_store(config: VectorStoreConfig | None = None) -> VectorStore:
