@@ -1,5 +1,15 @@
 """Semantic Video Search - Multimodal RAG with LanceDB and Gemini AI."""
 
+from video_search.embeddings import (
+    EmbeddingGenerator,
+    create_embedding_generator,
+)
+from video_search.extractor import (
+    VideoExtractor,
+    create_extractor,
+    extract_frames,
+    get_video_metadata,
+)
 from video_search.models import (
     EmbeddingConfig,
     ExtractionConfig,
@@ -10,29 +20,19 @@ from video_search.models import (
     SearchResult,
     SearchResults,
     VectorStoreConfig,
+    VerificationRequest,
+    VerificationResult,
     VideoMetadata,
     VideoSearchConfig,
     VideoStatus,
-    VerificationRequest,
-    VerificationResult,
-)
-from video_search.extractor import (
-    VideoExtractor,
-    create_extractor,
-    extract_frames,
-    get_video_metadata,
-)
-from video_search.embeddings import (
-    EmbeddingGenerator,
-    create_embedding_generator,
-)
-from video_search.store import (
-    VectorStore,
-    create_vector_store,
 )
 from video_search.search import (
     VideoSearchEngine,
     create_search_engine,
+)
+from video_search.store import (
+    VectorStore,
+    create_vector_store,
 )
 
 __version__ = "1.0.0"

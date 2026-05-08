@@ -3,33 +3,51 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
+from typing import Protocol
 
-from video_search.embeddings import EmbeddingGenerator, create_embedding_generator
-from video_search.extractor import VideoExtractor, create_extractor
+from video_search.embeddings import create_embedding_generator
+from video_search.extractor import create_extractor
 from video_search.models import (
-    FrameData,
     FrameEmbedding,
     IndexingProgress,
     SearchQuery,
-    SearchResult,
     SearchResults,
     VideoMetadata,
     VideoSearchConfig,
     VideoStatus,
 )
-from video_search.store import VectorStore, create_vector_store
+from video_search.store import create_vector_store
+
+
+class SearchStore(Protocol):
+    """Store interface used by the search engine."""
+
+    def add_embeddings(self, embeddings: list[FrameEmbedding]) -> None: ...
+
+    def search(self, query_embedding: list[float], query: SearchQuery) -> SearchResults: ...
+
+    def get_frame(self, frame_id: str) -> FrameEmbedding | None: ...
+
+    def get_video_frames(self, video_id: str) -> list[FrameEmbedding]: ...
+
+    def list_videos(self) -> list[str]: ...
+
+    def delete_video(self, video_id: str) -> int: ...
+
+    def count(self) -> int: ...
 
 
 class VideoSearchEngine:
     """Main engine for semantic video search."""
 
-    def __init__(self, config: VideoSearchConfig | None = None):
+    def __init__(self, config: VideoSearchConfig | None = None, store: SearchStore | None = None):
         """Initialize the search engine.
 
         Args:
             config: Search engine configuration.
+            store: Optional vector store implementation for tests or demos.
         """
         self.config = config or VideoSearchConfig()
 
@@ -39,7 +57,7 @@ class VideoSearchEngine:
             self.config.frames_dir,
         )
         self.embedder = create_embedding_generator(self.config.embedding)
-        self.store = create_vector_store(self.config.vector_store)
+        self.store = store or create_vector_store(self.config.vector_store)
 
         # Progress callback
         self._progress_callback: Callable[[IndexingProgress], None] | None = None
@@ -252,13 +270,17 @@ class VideoSearchEngine:
         }
 
 
-def create_search_engine(config: VideoSearchConfig | None = None) -> VideoSearchEngine:
+def create_search_engine(
+    config: VideoSearchConfig | None = None,
+    store: SearchStore | None = None,
+) -> VideoSearchEngine:
     """Create a VideoSearchEngine instance.
 
     Args:
         config: Configuration.
+        store: Optional vector store implementation.
 
     Returns:
         VideoSearchEngine instance.
     """
-    return VideoSearchEngine(config)
+    return VideoSearchEngine(config, store)

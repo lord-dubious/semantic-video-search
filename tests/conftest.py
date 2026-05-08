@@ -2,13 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-import tempfile
-
 import pytest
-import numpy as np
 
 from video_search.models import (
     EmbeddingConfig,

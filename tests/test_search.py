@@ -2,24 +2,36 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-import asyncio
-
 import pytest
 
 from video_search.models import (
-    FrameData,
     FrameEmbedding,
     SearchResults,
-    VideoMetadata,
-    VideoSearchConfig,
-    VideoStatus,
 )
 from video_search.search import (
     VideoSearchEngine,
     create_search_engine,
 )
+from video_search.store import InMemoryVectorStore
+
+
+def create_memory_engine() -> VideoSearchEngine:
+    return create_search_engine(store=InMemoryVectorStore())
+
+
+def add_test_frames(engine: VideoSearchEngine, video_ids: list[str]) -> None:
+    engine.store.add_embeddings(
+        [
+            FrameEmbedding(
+                frame_id=f"f{index}",
+                video_id=video_id,
+                timestamp=float(index),
+                description="",
+                embedding=[],
+            )
+            for index, video_id in enumerate(video_ids, start=1)
+        ]
+    )
 
 
 class TestVideoSearchEngine:
@@ -49,9 +61,7 @@ class TestVideoSearchEngine:
 
     def test_list_indexed_videos_empty(self):
         """Test listing videos when none indexed."""
-        engine = create_search_engine()
-        engine.store._db = "mock"
-        engine.store._mock_data = []
+        engine = create_memory_engine()
 
         videos = engine.list_indexed_videos()
 
@@ -59,12 +69,8 @@ class TestVideoSearchEngine:
 
     def test_list_indexed_videos(self):
         """Test listing indexed videos."""
-        engine = create_search_engine()
-        engine.store._db = "mock"
-        engine.store._mock_data = [
-            {"video_id": "vid1", "frame_id": "f1"},
-            {"video_id": "vid2", "frame_id": "f2"},
-        ]
+        engine = create_memory_engine()
+        add_test_frames(engine, ["vid1", "vid2"])
 
         videos = engine.list_indexed_videos()
 
@@ -73,24 +79,8 @@ class TestVideoSearchEngine:
 
     def test_get_video_info(self):
         """Test getting video info."""
-        engine = create_search_engine()
-        engine.store._db = "mock"
-        engine.store._mock_data = [
-            {
-                "video_id": "vid1",
-                "frame_id": "f1",
-                "timestamp": 0.0,
-                "description": "",
-                "vector": [],
-            },
-            {
-                "video_id": "vid1",
-                "frame_id": "f2",
-                "timestamp": 2.0,
-                "description": "",
-                "vector": [],
-            },
-        ]
+        engine = create_memory_engine()
+        add_test_frames(engine, ["vid1", "vid1"])
 
         info = engine.get_video_info("vid1")
 
@@ -99,12 +89,8 @@ class TestVideoSearchEngine:
 
     def test_delete_video(self):
         """Test deleting a video."""
-        engine = create_search_engine()
-        engine.store._db = "mock"
-        engine.store._mock_data = [
-            {"video_id": "vid1", "frame_id": "f1"},
-            {"video_id": "vid1", "frame_id": "f2"},
-        ]
+        engine = create_memory_engine()
+        add_test_frames(engine, ["vid1", "vid1"])
 
         deleted = engine.delete_video("vid1")
 
@@ -112,12 +98,8 @@ class TestVideoSearchEngine:
 
     def test_get_stats(self):
         """Test getting engine statistics."""
-        engine = create_search_engine()
-        engine.store._db = "mock"
-        engine.store._mock_data = [
-            {"video_id": "vid1", "frame_id": "f1"},
-            {"video_id": "vid2", "frame_id": "f2"},
-        ]
+        engine = create_memory_engine()
+        add_test_frames(engine, ["vid1", "vid2"])
 
         stats = engine.get_stats()
 
@@ -128,10 +110,7 @@ class TestVideoSearchEngine:
     @pytest.mark.asyncio
     async def test_search_empty_store(self):
         """Test searching empty store."""
-        engine = create_search_engine()
-        engine.store._db = "mock"
-        engine.store._mock_data = []
-        engine.store._table = None
+        engine = create_memory_engine()
 
         # Mock the embedder
         engine.embedder._model = "mock"
@@ -145,10 +124,7 @@ class TestVideoSearchEngine:
     @pytest.mark.asyncio
     async def test_search_with_results(self):
         """Test searching with mock results."""
-        engine = create_search_engine()
-        engine.store._db = "mock"
-        engine.store._mock_data = []
-        engine.store._table = None
+        engine = create_memory_engine()
         engine.embedder._model = "mock"
         engine.embedder._embed_model = "mock"
 
@@ -162,10 +138,7 @@ class TestVideoSearchEngine:
 
     def test_search_sync(self):
         """Test synchronous search wrapper."""
-        engine = create_search_engine()
-        engine.store._db = "mock"
-        engine.store._mock_data = []
-        engine.store._table = None
+        engine = create_memory_engine()
         engine.embedder._model = "mock"
         engine.embedder._embed_model = "mock"
 
@@ -194,10 +167,7 @@ class TestSearchParameters:
     @pytest.mark.asyncio
     async def test_search_top_k(self):
         """Test top_k parameter."""
-        engine = create_search_engine()
-        engine.store._db = "mock"
-        engine.store._mock_data = []
-        engine.store._table = None
+        engine = create_memory_engine()
         engine.embedder._model = "mock"
         engine.embedder._embed_model = "mock"
 
@@ -208,10 +178,7 @@ class TestSearchParameters:
     @pytest.mark.asyncio
     async def test_search_threshold(self):
         """Test threshold parameter."""
-        engine = create_search_engine()
-        engine.store._db = "mock"
-        engine.store._mock_data = []
-        engine.store._table = None
+        engine = create_memory_engine()
         engine.embedder._model = "mock"
         engine.embedder._embed_model = "mock"
 
@@ -222,10 +189,7 @@ class TestSearchParameters:
     @pytest.mark.asyncio
     async def test_search_video_filter(self):
         """Test video_ids filter."""
-        engine = create_search_engine()
-        engine.store._db = "mock"
-        engine.store._mock_data = []
-        engine.store._table = None
+        engine = create_memory_engine()
         engine.embedder._model = "mock"
         engine.embedder._embed_model = "mock"
 

@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
-from pathlib import Path
-from typing import Any
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class VideoStatus(str, Enum):
+class VideoStatus(StrEnum):
     """Video processing status."""
 
     PENDING = "pending"

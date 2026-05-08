@@ -24,7 +24,7 @@ WORKDIR /app
 RUN pip install uv
 
 # Copy dependency files first (for caching)
-COPY pyproject.toml requirements.txt requirements-dev.txt ./
+COPY pyproject.toml requirements.txt requirements-dev.txt README.md ./
 
 # Install dependencies
 RUN uv pip install --system -r requirements.txt

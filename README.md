@@ -1,6 +1,21 @@
 # Semantic Video Search
 
-Multimodal semantic video search using LanceDB, Gemini AI, and ffmpeg for extracting and searching video content with natural language queries.
+Indexes video frames with ffmpeg, describes them with Gemini, and stores searchable frame embeddings in LanceDB.
+
+## What Works
+
+- Extracts frames from local videos at configurable intervals using ffmpeg
+- Generates frame descriptions with Gemini 2.5 Flash
+- Searches indexed moments with natural-language queries and vector similarity
+- Stores frame embeddings in LanceDB without a separate vector database service
+- Optionally asks Gemini to verify candidate results against the original frame
+- Provides a Typer/Rich CLI for indexing, search, listing, deletion, and stats
+
+## Current Limits
+
+- Requires a valid `GEMINI_API_KEY`; local tests use explicit in-memory fakes instead of silently switching production code into mock mode.
+- Search quality depends on frame interval, caption quality, and the embedding model. This is a reference implementation, not a benchmarked video retrieval product.
+- LanceDB is required for the default `VectorStore`. Use `InMemoryVectorStore` only for tests, demos, or examples where persistence is not expected.
 
 ## Features
 
@@ -162,6 +177,16 @@ config = VideoSearchConfig(
 | `LANCEDB_TABLE` | Table name for frames | `video_frames` |
 | `FRAME_INTERVAL` | Frame extraction interval | `2.0` |
 
+## Dependency Behavior
+
+The default store fails fast when LanceDB is unavailable. That keeps production runs from appearing successful while dropping data into a temporary mock store. Tests and examples that do not need persistence should instantiate `InMemoryVectorStore` directly.
+
+```python
+from video_search.store import InMemoryVectorStore
+
+store = InMemoryVectorStore()
+```
+
 ## Development
 
 ### Running Tests
@@ -196,7 +221,7 @@ semantic-video-search/
 │   ├── models.py        # Pydantic data models
 │   ├── extractor.py     # ffmpeg frame extraction
 │   ├── embeddings.py    # Gemini embedding generation
-│   ├── store.py         # LanceDB vector store
+│   ├── store.py         # LanceDB and in-memory vector stores
 │   ├── search.py        # Main search engine
 │   └── cli.py           # Typer CLI
 ├── tests/
@@ -236,7 +261,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Open focused pull requests with a short problem statement, test evidence, and any known limitations. This repository favors honest maintenance history over large unreviewable drops.
 
 ## Acknowledgments
 
