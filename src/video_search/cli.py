@@ -15,7 +15,7 @@ from video_search.search import create_search_engine
 
 app = typer.Typer(
     name="video-search",
-    help="Semantic video search using LanceDB and Gemini AI",
+    help="Semantic video indexing and frame search with LanceDB, Gemini, and explicit test-store boundaries",
 )
 console = Console()
 

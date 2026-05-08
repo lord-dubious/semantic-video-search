@@ -1,4 +1,4 @@
-"""Semantic Video Search - Multimodal RAG with LanceDB and Gemini AI."""
+"""Semantic video indexing with LanceDB, Gemini, and explicit dependency boundaries."""
 
 from video_search.embeddings import (
     EmbeddingGenerator,
