@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -22,16 +22,19 @@ console = Console()
 
 @app.command()
 def index(
-    video_path: Path = typer.Argument(..., help="Path to video file"),
-    frames_dir: Optional[str] = typer.Option(
-        "./data/frames", "--frames-dir", "-f", help="Directory for extracted frames"
-    ),
-    interval: float = typer.Option(
-        2.0, "--interval", "-i", help="Frame extraction interval in seconds"
-    ),
-    db_path: Optional[str] = typer.Option(
-        "./data/lancedb", "--db", "-d", help="Path to LanceDB database"
-    ),
+    video_path: Annotated[Path, typer.Argument(help="Path to video file")],
+    frames_dir: Annotated[
+        str | None,
+        typer.Option("--frames-dir", "-f", help="Directory for extracted frames"),
+    ] = "./data/frames",
+    interval: Annotated[
+        float,
+        typer.Option("--interval", "-i", help="Frame extraction interval in seconds"),
+    ] = 2.0,
+    db_path: Annotated[
+        str | None,
+        typer.Option("--db", "-d", help="Path to LanceDB database"),
+    ] = "./data/lancedb",
 ) -> None:
     """Index a video for semantic search."""
     if not video_path.exists():
@@ -68,18 +71,22 @@ def index(
             console.print(f"  Resolution: {metadata.width}x{metadata.height}")
         except Exception as e:
             console.print(f"[red]Error:[/red] {e}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
 
 @app.command()
 def search(
-    query: str = typer.Argument(..., help="Natural language search query"),
-    top_k: int = typer.Option(5, "--top", "-k", help="Number of results to return"),
-    threshold: float = typer.Option(0.5, "--threshold", "-t", help="Similarity threshold"),
-    verify: bool = typer.Option(False, "--verify", "-v", help="Verify results with LLM"),
-    db_path: Optional[str] = typer.Option(
-        "./data/lancedb", "--db", "-d", help="Path to LanceDB database"
-    ),
+    query: Annotated[str, typer.Argument(help="Natural language search query")],
+    top_k: Annotated[int, typer.Option("--top", "-k", help="Number of results to return")] = 5,
+    threshold: Annotated[
+        float,
+        typer.Option("--threshold", "-t", help="Similarity threshold"),
+    ] = 0.5,
+    verify: Annotated[bool, typer.Option("--verify", "-v", help="Verify results with LLM")] = False,
+    db_path: Annotated[
+        str | None,
+        typer.Option("--db", "-d", help="Path to LanceDB database"),
+    ] = "./data/lancedb",
 ) -> None:
     """Search for video moments matching a query."""
     config = VideoSearchConfig()
@@ -121,9 +128,10 @@ def search(
 
 @app.command()
 def list_videos(
-    db_path: Optional[str] = typer.Option(
-        "./data/lancedb", "--db", "-d", help="Path to LanceDB database"
-    ),
+    db_path: Annotated[
+        str | None,
+        typer.Option("--db", "-d", help="Path to LanceDB database"),
+    ] = "./data/lancedb",
 ) -> None:
     """List all indexed videos."""
     config = VideoSearchConfig()
@@ -150,7 +158,7 @@ def list_videos(
 
 @app.command()
 def stats(
-    db_path: Optional[str] = typer.Option(
+    db_path: str | None = typer.Option(
         "./data/lancedb", "--db", "-d", help="Path to LanceDB database"
     ),
 ) -> None:
@@ -165,7 +173,7 @@ def stats(
     console.print("\n[bold]Search Engine Statistics[/bold]")
     console.print(f"  Total Frames: {stats_data['total_frames']}")
     console.print(f"  Indexed Videos: {stats_data['indexed_videos']}")
-    console.print(f"\n[bold]Configuration[/bold]")
+    console.print("\n[bold]Configuration[/bold]")
     for key, value in stats_data["config"].items():
         console.print(f"  {key}: {value}")
 
@@ -173,7 +181,7 @@ def stats(
 @app.command()
 def delete(
     video_id: str = typer.Argument(..., help="Video ID to delete"),
-    db_path: Optional[str] = typer.Option(
+    db_path: str | None = typer.Option(
         "./data/lancedb", "--db", "-d", help="Path to LanceDB database"
     ),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
