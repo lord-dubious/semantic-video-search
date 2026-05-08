@@ -2,10 +2,61 @@
 
 Indexes video frames with ffmpeg, describes them with Gemini, and stores searchable frame embeddings in LanceDB.
 
-## Portfolio Review
+## Portfolio Showcase
 
-- [Architecture](docs/ARCHITECTURE.md) - component boundaries, data flow, external dependencies, and degraded-mode behavior.
-- [Demo Guide](docs/DEMO.md) - safe local walkthrough commands and recruiter-facing talking points.
+![Semantic Video Search CLI showcase](docs/assets/showcase.png)
+
+- **Architecture deep dive:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- **Demo guide:** [`docs/DEMO.md`](docs/DEMO.md)
+- **Reviewer focus:** ffmpeg frame extraction, Gemini captions/embeddings, LanceDB storage, and explicit in-memory test boundaries.
+
+## Architecture Overview
+
+```mermaid
+flowchart TB
+    classDef input fill:#ecfeff,stroke:#0891b2,stroke-width:2px,color:#164e63
+    classDef core fill:#eef2ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef external fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#7c2d12
+    classDef metadata fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef review fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+
+    Video[/Local video file/]:::input
+    Query[/Natural-language search query/]:::input
+    User[/Reviewer or demo user/]:::review
+
+    subgraph Extraction["Frame Extraction"]
+        FFmpeg[ffmpeg frame sampler]:::external
+        Frames[Frame metadata and timestamps]:::metadata
+    end
+
+    subgraph Embeddings["Caption and Embedding Boundary"]
+        Embedder[Gemini embedding generator]:::core
+        Gemini{{Gemini API optional}}:::external
+        EmbeddingStatus[dependency and model status]:::metadata
+    end
+
+    subgraph Storage["Vector Store Boundary"]
+        Store[VectorStore production adapter]:::core
+        LanceDB[(LanceDB)]:::external
+        Memory[InMemoryVectorStore tests and demos]:::metadata
+    end
+
+    subgraph Retrieval["Search Output"]
+        Engine[VideoSearchEngine]:::core
+        Results[Timestamped frame matches]:::review
+    end
+
+    Video --> FFmpeg --> Frames --> Embedder
+    Embedder <-->|captions and vectors| Gemini
+    Embedder -. dependency or API failure .-> EmbeddingStatus
+    Embedder --> Store
+    Store <-->|persistent vectors| LanceDB
+    Store -. explicit test injection .-> Memory
+    Query --> Engine
+    Engine --> Store
+    Store --> Results --> User
+    EmbeddingStatus --> User
+```
 
 ## What Works
 
@@ -30,25 +81,6 @@ Indexes video frames with ffmpeg, describes them with Gemini, and stores searcha
 - **Vector Store**: Efficient storage and retrieval with LanceDB (embedded, no server needed)
 - **Verification**: Optional LLM verification of search results for accuracy
 - **CLI Interface**: Full-featured command line tool for all operations
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Video Ingestion                              │
-├─────────────┬───────────────┬────────────────┬─────────────────────┤
-│   Video     │    ffmpeg     │    Gemini      │     LanceDB         │
-│   Input     │   Extract     │   Describe     │   Store             │
-│   (MP4)  ──▶│   Frames   ──▶│   Frames    ──▶│   Embeddings        │
-└─────────────┴───────────────┴────────────────┴─────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Semantic Search                              │
-├─────────────┬───────────────┬────────────────┬─────────────────────┤
-│   Query     │    Gemini     │    LanceDB     │    Results          │
-│   "find..." │   Embed    ──▶│   Search    ──▶│   + Verify          │
-└─────────────┴───────────────┴────────────────┴─────────────────────┘
-```
 
 ## Installation
 
