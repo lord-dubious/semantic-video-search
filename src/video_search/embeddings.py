@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import os
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -31,8 +31,8 @@ class EmbeddingGenerator:
         """
         self.config = config or EmbeddingConfig()
         self.api_key = api_key or os.getenv("GEMINI_API_KEY", "")
-        self._model = None
-        self._embed_model = None
+        self._model: Any | None = None
+        self._embed_model: Any | None = None
 
     def _init_models(self) -> None:
         """Initialize Gemini models lazily."""
@@ -71,11 +71,13 @@ class EmbeddingGenerator:
             return f"Mock description for frame: {frame_path.name}"
 
         try:
-            import google.generativeai as genai
             from PIL import Image
 
             # Load and prepare image
             image = Image.open(frame_path)
+            model = self._model
+            if model is None:
+                raise RuntimeError("Gemini model is not initialized")
 
             # Generate description
             prompt = """Describe this video frame in detail. Include:
@@ -86,7 +88,7 @@ class EmbeddingGenerator:
 Keep the description concise but comprehensive (2-3 sentences)."""
 
             response = await asyncio.to_thread(
-                self._model.generate_content,
+                model.generate_content,
                 [prompt, image],
             )
 
@@ -203,7 +205,7 @@ Keep the description concise but comprehensive (2-3 sentences)."""
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for result in results:
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     # Skip failed frames
                     continue
                 yield result
@@ -237,6 +239,9 @@ Keep the description concise but comprehensive (2-3 sentences)."""
             from PIL import Image
 
             image = Image.open(frame_path)
+            model = self._model
+            if model is None:
+                raise RuntimeError("Gemini model is not initialized")
 
             prompt = f"""Verify if this video frame matches the search query.
 
@@ -254,7 +259,7 @@ CONFIDENCE: [0-100]
 EXPLANATION: [brief explanation]"""
 
             response = await asyncio.to_thread(
-                self._model.generate_content,
+                model.generate_content,
                 [prompt, image],
             )
 

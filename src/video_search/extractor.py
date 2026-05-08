@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import subprocess
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 from video_search.models import (
     ExtractionConfig,
