@@ -2,6 +2,11 @@
 
 Indexes video frames with ffmpeg, describes them with Gemini, and stores searchable frame embeddings in LanceDB.
 
+## Portfolio Review
+
+- [Architecture](docs/ARCHITECTURE.md) - component boundaries, data flow, external dependencies, and degraded-mode behavior.
+- [Demo Guide](docs/DEMO.md) - safe local walkthrough commands and recruiter-facing talking points.
+
 ## What Works
 
 - Extracts frames from local videos at configurable intervals using ffmpeg
