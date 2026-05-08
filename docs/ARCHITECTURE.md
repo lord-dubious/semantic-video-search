@@ -14,12 +14,49 @@ This document is written for reviewers who want to understand how the project is
 6. Timestamped frame results
 
 ```mermaid
-flowchart LR
-    A1[Video input] --> A2[ffmpeg frame extraction]
-    A2[ffmpeg frame extraction] --> A3[Gemini captions/embeddings]
-    A3[Gemini captions/embeddings] --> A4[LanceDB vector store]
-    A4[LanceDB vector store] --> A5[Semantic query]
-    A5[Semantic query] --> A6[Timestamped frame results]
+flowchart TB
+    classDef input fill:#ecfeff,stroke:#0891b2,stroke-width:2px,color:#164e63
+    classDef core fill:#eef2ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef external fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#7c2d12
+    classDef metadata fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef review fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+
+    Video[/Local video file/]:::input
+    Query[/Natural-language search query/]:::input
+    User[/Reviewer or demo user/]:::review
+
+    subgraph Extraction["Frame Extraction"]
+        FFmpeg[ffmpeg frame sampler]:::external
+        Frames[Frame metadata and timestamps]:::metadata
+    end
+
+    subgraph Embeddings["Caption and Embedding Boundary"]
+        Embedder[Gemini embedding generator]:::core
+        Gemini{{Gemini API optional}}:::external
+        EmbeddingStatus[dependency and model status]:::metadata
+    end
+
+    subgraph Storage["Vector Store Boundary"]
+        Store[VectorStore production adapter]:::core
+        LanceDB[(LanceDB)]:::external
+        Memory[InMemoryVectorStore tests and demos]:::metadata
+    end
+
+    subgraph Retrieval["Search Output"]
+        Engine[VideoSearchEngine]:::core
+        Results[Timestamped frame matches]:::review
+    end
+
+    Video --> FFmpeg --> Frames --> Embedder
+    Embedder <-->|captions and vectors| Gemini
+    Embedder -. dependency or API failure .-> EmbeddingStatus
+    Embedder --> Store
+    Store <-->|persistent vectors| LanceDB
+    Store -. explicit test injection .-> Memory
+    Query --> Engine
+    Engine --> Store
+    Store --> Results --> User
+    EmbeddingStatus --> User
 ```
 
 ## Main Components
