@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from video_search.models import ExtractionConfig, VideoStatus
 from video_search.extractor import (
     VideoExtractor,
     create_extractor,
-    get_video_metadata,
     get_frame_count,
+    get_video_metadata,
 )
+from video_search.models import ExtractionConfig, VideoStatus
 
 
 class TestGetVideoMetadata:
@@ -52,9 +51,9 @@ class TestGetVideoMetadata:
         video_path = tmp_path / "test.mp4"
         video_path.touch()
 
-        mock_run.side_effect = Exception("ffprobe not found")
+        mock_run.side_effect = RuntimeError("ffprobe not found")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             get_video_metadata(video_path)
 
     @patch("subprocess.run")

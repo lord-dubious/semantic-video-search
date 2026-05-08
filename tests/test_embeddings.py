@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-import asyncio
-
 import pytest
 
-from video_search.models import EmbeddingConfig, FrameData, FrameEmbedding
 from video_search.embeddings import (
     EmbeddingGenerator,
     create_embedding_generator,
 )
+from video_search.models import EmbeddingConfig, FrameData, FrameEmbedding
 
 
 class TestEmbeddingGenerator:
@@ -181,7 +177,7 @@ class TestEmbeddingGenerator:
             "description",
         )
 
-        assert is_match == False
+        assert not is_match
         assert confidence == 0.0
         assert "not found" in explanation
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 import pytest
 from pydantic import ValidationError
 
@@ -17,11 +15,11 @@ from video_search.models import (
     SearchResult,
     SearchResults,
     VectorStoreConfig,
+    VerificationRequest,
+    VerificationResult,
     VideoMetadata,
     VideoSearchConfig,
     VideoStatus,
-    VerificationRequest,
-    VerificationResult,
 )
 
 
@@ -201,7 +199,7 @@ class TestSearchResult:
     def test_create_search_result(self, sample_search_result):
         """Test creating search result."""
         assert sample_search_result.similarity == 0.85
-        assert sample_search_result.verified == False
+        assert not sample_search_result.verified
 
     def test_search_result_verification(self):
         """Test verification fields."""
@@ -214,7 +212,7 @@ class TestSearchResult:
             verified=True,
             verification_note="Confirmed match",
         )
-        assert result.verified == True
+        assert result.verified
         assert result.verification_note == "Confirmed match"
 
 
@@ -295,5 +293,5 @@ class TestVerificationResult:
             confidence=0.95,
             explanation="Frame clearly shows a cat",
         )
-        assert result.is_match == True
+        assert result.is_match
         assert result.confidence == 0.95
